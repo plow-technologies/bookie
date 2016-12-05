@@ -1,0 +1,34 @@
+name: bookie
+version: '0.1.0'
+author: Scott Murphy <scottmurphy09@gmail.com>
+maintainer: Scott Murphy <scottmurphy09@gmail.com>
+license: BSD3
+dependencies:  
+  - shake
+  - lens
+  - text
+  - base
+  - aeson
+  - yaml
+  - either
+  - lens-regex
+  - regex-base
+  - regex-posix
+
+library:
+  source-dirs: src
+  ghc-options: -Wall
+  exposed-modules:
+    - Project.Libraries
+    - Project.Types
+    - Project.Internal
+    - Project.Defaults
+executables:
+  ats-shake:
+    main: Main.hs
+    source-dirs:  src
+    ghc-options: -Wall
+    dependencies:
+      - getopt-generics
+
+
