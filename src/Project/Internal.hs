@@ -25,6 +25,7 @@ import Data.Semigroup
 import Text.Regex.Lens
 import Text.Regex.Base
 import Text.Regex.Posix
+import Text.Show (Show(..))
 import Control.Lens
 
 
@@ -42,7 +43,12 @@ newtype  FixedText (lengthMax :: Nat)
                    (lengthMin :: Nat)
                    (regex     :: Symbol) 
            = FixedText { _unFixedText :: Text}
-  deriving (Show,Ord,Eq)
+  deriving (Ord,Eq)
+
+
+instance Show (FixedText max min num) where
+  show = fixedTextToString
+
 
 -- | JSON instances for config files
 instance (KnownNat max, KnownNat min, KnownSymbol regex) => FromJSON (FixedText (max::Nat) (min :: Nat) (regex :: Symbol)) where

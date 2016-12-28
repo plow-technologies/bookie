@@ -160,21 +160,23 @@ getAtsConfigSimple = do
 -- | Query several of the values instead of just target
 getAtsConfig :: IO AtsBuildConfig
 getAtsConfig = do
-  (Right wd)                     <- (workingDir.pack) <$> getCurrentDirectory
-  (AtsBuildConfig {..})  <- getAtsConfigSimple
-  version                <- askForInputWithDefault "Version"   atsProjectVersion inputVersion
-  buildDir'              <- askForInputWithDefault "build dir" atsBuildDir       inputBuildDir
-  _sourceDir'            <- askForInputWithDefault "source dir" atsSourceDir     inputSourceDir
-  return (AtsBuildConfig atsHome
-                         atsSourceDir
-                         atsCC
-                         atsOpt
-                         atsFlags
-                         buildDir'
-                         atsSourceFiles
-                         version
-                         wd
-                         atsTarget) 
+  eitherWorkingDirOrFailure          <- (workingDir.pack) <$> getCurrentDirectory
+  (AtsBuildConfig {..})              <- getAtsConfigSimple
+  version                            <- askForInputWithDefault "Version"   atsProjectVersion inputVersion
+  buildDir'                          <- askForInputWithDefault "build dir" atsBuildDir       inputBuildDir
+  _sourceDir'                        <- askForInputWithDefault "source dir" atsSourceDir     inputSourceDir
+  case eitherWorkingDirOrFailure of
+    (Left e)   -> fail . show $ e 
+    (Right wd) -> return (AtsBuildConfig atsHome
+                                         atsSourceDir
+                                         atsCC
+                                         atsOpt
+                                         atsFlags
+                                         buildDir'
+                                         atsSourceFiles
+                                         version
+                                         wd
+                                         atsTarget) 
 
 
 -- | Pull the target out and build with it.

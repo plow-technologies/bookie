@@ -60,6 +60,7 @@ import Project.Internal  ( FixedTextErrors
                          , FixedText
                          , fixedTextFromText)
 
+
 import Project.Internal (unsafeFixedTextFromText)
 import Development.Shake.FilePath ( (</>)
                                   , FilePath)
@@ -134,7 +135,7 @@ buildDir = fixedTextFromText
 --
 --   Notice: This directory is always discovered and
 --   not supplied by the yaml.  
-type WorkingDir = FixedText 100 0 "[[:alnum:]_.-]"
+type WorkingDir = FixedText 100 0 "[[:alnum:]_.-/]"
 
 workingDir :: Text -> Either FixedTextErrors WorkingDir
 workingDir = fixedTextFromText
@@ -221,14 +222,15 @@ instance FromJSON AtsBuildConfig where
 
 instance ToJSON AtsBuildConfig where
   toJSON (AtsBuildConfig {..}) = object [
-       "ats-home"         .= atsHome
-     , "ats-source-dir"   .= atsSourceDir
-     , "ats-cc"           .= atsCC
-     , "ats-opt"          .= atsOpt
-     , "ats-flags"        .= atsFlags
-     , "ats-build-dir"    .= atsBuildDir
-     , "ats-source-files" .= atsSourceFiles
-     , "ats-project-version" .= atsProjectVersion]
+      "ats-target"       .= atsTarget
+    , "ats-home"         .= atsHome
+    , "ats-source-dir"   .= atsSourceDir
+    , "ats-cc"           .= atsCC
+    , "ats-opt"          .= atsOpt
+    , "ats-flags"        .= atsFlags
+    , "ats-build-dir"    .= atsBuildDir
+    , "ats-source-files" .= atsSourceFiles
+    , "ats-project-version" .= atsProjectVersion]
 
 
 
