@@ -5,6 +5,7 @@ module Main where
 
 import Development.Shake ( shakeArgs
                          , shakeOptions
+                         , shake
                          , ShakeOptions(..)
                          , Verbosity(..)
                          , shakeFiles
@@ -30,9 +31,9 @@ data Commands = Init {target :: Maybe Text}
 
 
 main :: IO ()
-main = main' -- do
---  rslt <- getRecord "Bookie Options"
---  runBookie rslt
+main = do
+  rslt <- getRecord "Bookie Options"
+  runBookie rslt
 
 runBookie :: Commands -> IO ()
 runBookie (Init Nothing)       = writeAtsSimple 
@@ -46,9 +47,9 @@ main' :: IO ()
 main' = do
   putStrLn "build started Whoo HOO"
   (Right cfg) <- Yaml.decodeFileEither "bookie.yaml"
-  shakeArgs shakeOptions { shakeFiles     = (fixedTextToString . atsBuildDir $ cfg)
-                         , shakeVerbosity = Diagnostic
-                         , shakeProgress  = progressSimple}
-                   other -- (atsProjectBuilder cfg)
+  shake shakeOptions { shakeFiles     = (fixedTextToString . atsBuildDir $ cfg)
+                     , shakeVerbosity = Diagnostic
+                     , shakeProgress  = progressSimple}
+                     (atsProjectBuilder cfg)
 
 
