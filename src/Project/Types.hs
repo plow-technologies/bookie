@@ -28,17 +28,23 @@ module Project.Types  ( TargetFile
                          , CFile
                          , Flag
                          , Version
+                         , SourceDir
                          , BuildDir
+                         , WorkingDir
                          , ObjFile
                          , SourceFile     (..)
                          , CommandRec     (..)
                          , AtsBuildConfig (..)
-
+                         , AtsBuildConfigStorable
+                         , toAtsBuildConfigStorable
+                         , fromAtsBuildConfigStorable
+                         
                          , datsFile
                          , satsFile
                          , hatsFile
                          , objFile
                          , targetFile
+                         , sourceDir
                          , buildDir
                          , workingDir
                          , cfile
@@ -46,7 +52,7 @@ module Project.Types  ( TargetFile
                          , versionText
 
 
-                         , defaultATSConfig
+                         , defaultATSConfigStorable
                          , defaultTargetDestination
                          , defaultBuildDirectory
                          , emptyWorkingDirectory) where
@@ -120,6 +126,16 @@ flag :: Text -> Either FixedTextErrors Flag
 flag = fixedTextFromText
 
 
+-- | Usually src, the directory your sources live in
+type SourceDir = FixedText 100 2 "[[:alnum:]_.-]"
+
+sourceDir :: Text -> Either FixedTextErrors SourceDir
+sourceDir = fixedTextFromText
+
+unsafeSourceDir :: Text -> SourceDir 
+unsafeSourceDir = unsafeFixedTextFromText "Source Dir: "
+
+
 -- | Usually ats-work, the directory files are built in 
 type BuildDir = FixedText 100 2 "[[:alnum:]_.-]"
 
@@ -173,10 +189,34 @@ data CommandRec = CommandRec {
 --------------------------------------------------
 -- Config Type
 --------------------------------------------------
+-- | not all proper config fields are storable.
+--   the working directory for instance is a field
+--   that must be gathered at run time.
+--   However, it is meant to be that everywhere in the project
+--   that a build config is needed, only the AtsBuildConfig will
+--   be used.
+--   So the constructor for storable is not provided.
+--   Instead use to and from Storable to take
+--   an atsBuildConfig and convert it to a storable one.
+data AtsBuildConfigStorable = AtsBuildConfigStorable {
+     atsStoreHome           :: FilePath   ,     
+     atsStoreSourceDir      :: SourceDir  ,
+     atsStoreCC             :: FilePath   ,
+     atsStoreOpt            :: FilePath   ,
+     atsStoreFlags          :: [Flag]     ,
+     atsStoreBuildDir       :: BuildDir   ,
+     atsStoreSourceFiles    :: SourceFiles ,
+     atsStoreProjectVersion :: Version ,
+     atsStoreTarget         :: TargetFile 
+
+
+     }
+ deriving (Show,Eq,Ord)
+
 
 data AtsBuildConfig = AtsBuildConfig {
      atsHome        :: FilePath   ,     
-     atsSourceDir   :: FilePath   ,
+     atsSourceDir   :: SourceDir  ,
      atsCC          :: FilePath   ,
      atsOpt         :: FilePath   ,
      atsFlags       :: [Flag]     ,
@@ -185,11 +225,40 @@ data AtsBuildConfig = AtsBuildConfig {
      atsProjectVersion :: Version ,
      atsWorkingDir  :: WorkingDir ,
      atsTarget      :: TargetFile 
-
-
      }
  deriving (Show,Eq,Ord)
 
+
+-- | Convert a Build Config Storable to a build config
+--   non-storable
+--   every field in storable is in AtsbuildConfig
+toAtsBuildConfigStorable  :: AtsBuildConfig -> AtsBuildConfigStorable
+toAtsBuildConfigStorable (AtsBuildConfig {..}) = (AtsBuildConfigStorable {
+      atsStoreHome           = atsHome           
+    , atsStoreSourceDir      = atsSourceDir      
+    , atsStoreCC             = atsCC             
+    , atsStoreOpt            = atsOpt            
+    , atsStoreFlags          = atsFlags          
+    , atsStoreBuildDir       = atsBuildDir       
+    , atsStoreSourceFiles    = atsSourceFiles    
+    , atsStoreProjectVersion = atsProjectVersion 
+    , atsStoreTarget         = atsTarget                                                          
+   })
+
+fromAtsBuildConfigStorable  :: AtsBuildConfigStorable -> WorkingDir -> AtsBuildConfig
+fromAtsBuildConfigStorable (AtsBuildConfigStorable {..}) atsWorkingDirIncoming = (AtsBuildConfig {
+      atsHome           = atsStoreHome           
+    , atsSourceDir      = atsStoreSourceDir      
+    , atsCC             = atsStoreCC             
+    , atsOpt            = atsStoreOpt            
+    , atsFlags          = atsStoreFlags          
+    , atsBuildDir       = atsStoreBuildDir       
+    , atsSourceFiles    = atsStoreSourceFiles    
+    , atsProjectVersion = atsStoreProjectVersion 
+    , atsWorkingDir     = atsWorkingDirIncoming
+    , atsTarget         = atsStoreTarget
+
+   })
 
 
 --------------------------------------------------
@@ -200,37 +269,36 @@ data AtsBuildConfig = AtsBuildConfig {
 --   fields not supplied by the yaml.
 --
 --   Except for the target field which must be supplied
-instance FromJSON AtsBuildConfig where
+instance FromJSON AtsBuildConfigStorable where
   parseJSON (Object o) = do
        target <- o .: "ats-target"
        
-       let AtsBuildConfig {..} = defaultATSConfig target
-       AtsBuildConfig <$>
-             (o .: "ats-home"         <|> pure atsHome)         
-         <*> (o .: "ats-source-dir"   <|> pure atsSourceDir)   
-         <*> (o .: "ats-cc"           <|> pure atsCC)           
-         <*> (o .: "ats-opt"          <|> pure atsOpt)
-         <*> (o .: "ats-flags"        <|> pure atsFlags)        
-         <*> (o .: "ats-build-dir"    <|> pure atsBuildDir)    
-         <*> (o .: "ats-source-files" <|> pure atsSourceFiles) 
-         <*> (o .: "ats-project-version" <|> pure atsProjectVersion)
-         <*> (pure emptyWorkingDirectory)
+       let AtsBuildConfigStorable {..} = defaultATSConfigStorable target
+       AtsBuildConfigStorable <$>
+             (o .: "ats-home"            <|> pure atsStoreHome)         
+         <*> (o .: "ats-source-dir"      <|> pure atsStoreSourceDir)   
+         <*> (o .: "ats-cc"              <|> pure atsStoreCC)           
+         <*> (o .: "ats-opt"             <|> pure atsStoreOpt)
+         <*> (o .: "ats-flags"           <|> pure atsStoreFlags)        
+         <*> (o .: "ats-build-dir"       <|> pure atsStoreBuildDir)    
+         <*> (o .: "ats-source-files"    <|> pure atsStoreSourceFiles) 
+         <*> (o .: "ats-project-version" <|> pure atsStoreProjectVersion)
          <*> pure target
 
 
-  parseJSON _ = fail "AtsBuildConfig expecting Object"
+  parseJSON _ = fail "AtsBuildConfigStorable expecting Object"
 
-instance ToJSON AtsBuildConfig where
-  toJSON (AtsBuildConfig {..}) = object [
-      "ats-target"       .= atsTarget
-    , "ats-home"         .= atsHome
-    , "ats-source-dir"   .= atsSourceDir
-    , "ats-cc"           .= atsCC
-    , "ats-opt"          .= atsOpt
-    , "ats-flags"        .= atsFlags
-    , "ats-build-dir"    .= atsBuildDir
-    , "ats-source-files" .= atsSourceFiles
-    , "ats-project-version" .= atsProjectVersion]
+instance ToJSON AtsBuildConfigStorable where
+  toJSON (AtsBuildConfigStorable {..}) = object [
+      "ats-target"          .= atsStoreTarget
+    , "ats-home"            .= atsStoreHome
+    , "ats-source-dir"      .= atsStoreSourceDir
+    , "ats-cc"              .= atsStoreCC
+    , "ats-opt"             .= atsStoreOpt
+    , "ats-flags"           .= atsStoreFlags
+    , "ats-build-dir"       .= atsStoreBuildDir
+    , "ats-source-files"    .= atsStoreSourceFiles
+    , "ats-project-version" .= atsStoreProjectVersion]
 
 
 
@@ -272,18 +340,17 @@ alt ea eb = either (nextEither eb) Right ea
 
 -- | This is the default set of options to build an 
 --   ats compiled binary.
-defaultATSConfig :: TargetFile -> AtsBuildConfig
-defaultATSConfig target = AtsBuildConfig { 
-     atsHome           = "/usr/local"
-   , atsBuildDir       = defaultBuildDirectory
-   , atsSourceDir      = "src"
-   , atsCC             = "/usr/local/bin/patscc"
-   , atsOpt            = "/usr/local/bin/patsopt"
-   , atsFlags          = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC"]     
-   , atsSourceFiles    = mempty
-   , atsProjectVersion = ver
-   , atsWorkingDir     = emptyWorkingDirectory
-   , atsTarget         = target  }
+defaultATSConfigStorable :: TargetFile -> AtsBuildConfigStorable
+defaultATSConfigStorable target = AtsBuildConfigStorable { 
+     atsStoreHome           = "/usr/local"
+   , atsStoreBuildDir       = defaultBuildDirectory
+   , atsStoreSourceDir      = unsafeSourceDir "src"
+   , atsStoreCC             = "/usr/local/bin/patscc"
+   , atsStoreOpt            = "/usr/local/bin/patsopt"
+   , atsStoreFlags          = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC"]     
+   , atsStoreSourceFiles    = mempty
+   , atsStoreProjectVersion = ver
+   , atsStoreTarget         = target  }
   where
     (Right ver) = versionText "0.0.1"
 

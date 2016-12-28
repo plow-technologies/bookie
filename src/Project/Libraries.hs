@@ -7,6 +7,7 @@ module Project.Libraries  where
 import Development.Shake ( Rules
                           , command_
                           , Action
+                          , CmdOption(..)
                           , want
                           , need
                           , liftIO
@@ -28,6 +29,7 @@ import Project.Types ( DatsFile
                      , TargetFile
                      , Flag
                      , BuildDir
+                     , WorkingDir
                      , SourceFiles
                      , SourceFile     (..)
                      , CommandRec     (..)
@@ -48,12 +50,13 @@ atsProjectBuilder cfg' = final
     
     sourceFiles     = atsSourceFiles   cfg
     buildDir        = atsBuildDir      cfg
+    workingDir      = atsWorkingDir    cfg
     targetFile      = atsTarget        cfg
     targetRule      = targetFileToRule cfg
 
-    objectWants     = makeAtsObjectFilePaths sourceFiles buildDir
-    targetWant      = makeTargetLocation     buildDir    targetFile
-    
+    objectWants     = makeAtsObjectFilePaths sourceFiles workingDir  buildDir
+    targetWant      = makeTargetLocation     workingDir  buildDir    targetFile
+
     possibleRules   = fmap (sourceFileToRule cfg ) . atsSourceFiles $ cfg
 
     malformedRules  = lefts  possibleRules
@@ -76,12 +79,13 @@ atsProjectBuilder cfg' = final
 
 -- | Build each of the source files as an object
 --   in its build directory
-makeAtsObjectFilePaths :: SourceFiles -> BuildDir  -> [FilePath]
-makeAtsObjectFilePaths atsSourceFiles atsBuildDir  = atsBuildObjects
+makeAtsObjectFilePaths :: SourceFiles -> WorkingDir -> BuildDir  -> [FilePath]
+makeAtsObjectFilePaths atsSourceFiles atsWorkingDir atsBuildDir  = atsBuildObjects
   where
-    atsBuildDirFP   = fixedTextToString atsBuildDir
-    addBuildDir     = (atsBuildDirFP </>)
-    atsBuildObjects = rights $ (fmap (addBuildDir. fixedTextToString) . sourceFileToObject) <$> atsSourceFiles
+    atsBuildDirFP    = show atsBuildDir
+    fullBuildDirPath = show atsWorkingDir </> atsBuildDirFP
+    addBuildDir      = (fullBuildDirPath </>)
+    atsBuildObjects  = rights $ (fmap (addBuildDir. fixedTextToString) . sourceFileToObject) <$> atsSourceFiles
 
 
 
@@ -95,12 +99,15 @@ makeAtsObjectFilePaths atsSourceFiles atsBuildDir  = atsBuildObjects
 
 
 -- | Declare the final binary target and put it in the dist/build folder
-makeTargetLocation :: BuildDir -> TargetFile -> FilePath
-makeTargetLocation atsBuildDir atsTarget = targetLocation
+makeTargetLocation :: WorkingDir -> BuildDir -> TargetFile -> FilePath
+makeTargetLocation atsWorkingDir atsBuildDir atsTarget = targetLocation
   where
-    atsBuildDirFP  = fixedTextToString atsBuildDir
-    targetLocation = atsBuildDirFP </> defaultTargetDestination
-                                   </> fixedTextToString atsTarget
+    atsWorkingDirFP  = show atsWorkingDir
+    atsBuildDirFP    = show atsBuildDir
+    targetLocation   = atsWorkingDirFP             </>
+                       atsBuildDirFP               </>
+                       defaultTargetDestination    </>
+                       fixedTextToString atsTarget
 
 
 
@@ -154,10 +161,11 @@ targetFileToDats = datsFile . (<> ".dats") . fixedTextToText
 targetFileToRule  :: AtsBuildConfig ->  Rules ()
 targetFileToRule cfg  =  fileTarget  %> buildTarget
   where
-    fileTarget    = makeTargetLocation buildDir targetFile
-    needs         = makeAtsObjectFilePaths sourceFiles buildDir
+    fileTarget    = makeTargetLocation workingDir buildDir targetFile
+    needs         = makeAtsObjectFilePaths sourceFiles workingDir buildDir
     sourceFiles   = atsSourceFiles cfg 
     buildDir      = atsBuildDir    cfg
+    workingDir    = atsWorkingDir  cfg
     targetFile    = atsTarget      cfg
     buildTarget _ = do
       need needs
@@ -168,18 +176,22 @@ targetFileToRule cfg  =  fileTarget  %> buildTarget
 -- | Add all the directories to the names of the files 
 sourceFileToRule :: AtsBuildConfig -> SourceFile -> Either FixedTextErrors (Rules ())
 sourceFileToRule cfg@AtsBuildConfig { atsSourceDir
+                                    , atsWorkingDir
                                     , atsBuildDir  } src = ( %> buildSource) <$> (traceShow buildFilePath buildFilePath)
   where
-    atsBuildDirFP   = fixedTextToString atsBuildDir
-    sourceFilePath  = atsSourceDir </> fileName
-    
-    buildFilePath   = (atsBuildDirFP </> ) <$>  
-                        (fixedTextToString <$> objectFile)
-                        
-    fileName        = sourceFileToFilePath src    
-    objectFile      = sourceFileToObject   src
+    workingDirFP      = show atsWorkingDir
+    atsBuildDirFP     = show atsBuildDir
+    atsFullBuildDirFP = workingDirFP    </> atsBuildDirFP
+    atsFullSourceFP   = workingDirFP    </> show atsSourceDir
+    sourceFilePath    = atsFullSourceFP </> fileName
 
-    buildSource _   =
+    buildFilePath     = (atsFullBuildDirFP </> ) <$>  
+                            (fixedTextToString <$> objectFile)
+
+    fileName          = sourceFileToFilePath src    
+    objectFile        = sourceFileToObject   src
+
+    buildSource _     =
       need [sourceFilePath]            *>
       executeCommandRec (atsBuildObjectCommand cfg src)
 
@@ -197,21 +209,22 @@ sourceFileToRule cfg@AtsBuildConfig { atsSourceDir
 --   this library builds intermediate structures
 --   called command records.  This allows us to more easily
 --   test the build script with multiple interpreters.
-
 atsBuildObjectCommand :: AtsBuildConfig -> SourceFile -> CommandRec
-atsBuildObjectCommand cfg src = (CommandRec cmd opts args) 
+atsBuildObjectCommand cfg src = CommandRec cmd opts args 
   where
-    opts          = []    
-    cmd           = atsCC        cfg    
-    atsFlags'     = atsFlags     cfg
-    buildDir      = atsBuildDir  cfg
-    sourceDir     = atsSourceDir cfg    
-    atsBuildDirFP = fixedTextToString buildDir    
+    opts          = [Cwd atsBuildDirFP]    
+    cmd           = atsCC         cfg    
+    atsFlags'     = atsFlags      cfg
+    buildDir      = atsBuildDir   cfg
+    workingDir    = atsWorkingDir cfg
+    sourceDir     = atsSourceDir  cfg
+    workingDirFP  = show workingDir
+    atsBuildDirFP = show buildDir    
     objectFile    = either (error . ("ats-build-problem" ++) .show) id (sourceFileToObject src)
-    args          = [ sourceDir </> sourceFileToFilePath src
+    args          = [ workingDirFP </> show sourceDir </> sourceFileToFilePath src
                     , compileSourceFilesNoLinkFlag
                     , compileOutputFlag
-                    , atsBuildDirFP </> fixedTextToString objectFile ] <> (flagToString <$> atsFlags')
+                    , workingDirFP </> atsBuildDirFP </> fixedTextToString objectFile ] <> (flagToString <$> atsFlags')
 
 -- | Compile output
 compileOutputFlag :: FilePath
@@ -234,10 +247,11 @@ atsBuildTarget AtsBuildConfig {  atsCC
                                , atsFlags
                                , atsSourceFiles
                                , atsBuildDir
-                               , atsTarget} = CommandRec atsCC [] allOptions
+                               , atsWorkingDir
+                               , atsTarget} = CommandRec atsCC [Cwd (show atsWorkingDir </> show atsBuildDir)] allOptions
   where    
-    objects    = makeAtsObjectFilePaths atsSourceFiles atsBuildDir
-    allOptions = objects                                          <>
-                 ["-o", makeTargetLocation atsBuildDir atsTarget] <>
+    objects    = makeAtsObjectFilePaths atsSourceFiles atsWorkingDir atsBuildDir    
+    allOptions = objects                                                         <>
+                 [ compileOutputFlag , makeTargetLocation atsWorkingDir atsBuildDir atsTarget] <>
                  (fixedTextToString <$> atsFlags)
 

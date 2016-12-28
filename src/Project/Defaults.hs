@@ -12,7 +12,7 @@ Currently, the only defaults are defined in the Types directory because they ahv
 used in the instances for To and From JSON..
 | -}
 
-module Project.Defaults ( defaultATSConfig
+module Project.Defaults ( defaultATSConfigStorable
                         , defaultTargetDestination
                         , defaultBuildDirectory) where
 
@@ -22,7 +22,7 @@ module Project.Defaults ( defaultATSConfig
 
 
 
-import Project.Types ( defaultATSConfig
+import Project.Types ( defaultATSConfigStorable
                      , defaultTargetDestination
                      , defaultBuildDirectory)
 

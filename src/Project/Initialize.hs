@@ -100,12 +100,10 @@ inputBuildDir = withExtraMessageInputFixedText errMsg
     errMsg = "Failure to read build dir"
 
 
-inputSourceDir :: IO (Input FilePath)
-inputSourceDir = (fmap show)   <$> toFilePath
+inputSourceDir :: IO (Input SourceDir)
+inputSourceDir = withExtraMessageInputFixedText errMsg
   where
-    toFilePath :: IO (Input (FixedText 100 3  "[[:alphanum:]]"))
-    toFilePath = withExtraMessageInputFixedText errMsg
-    errMsg = "Failure to get source dir"
+         errMsg = "Failure to get source dir"
 
 
 
@@ -144,14 +142,23 @@ askForInput fieldName action = do
   noDefault action
 
 
+-- | Fetch the working directory of the process,
+--   add it to the build config.
+getWorkingDirAndConstructConfig  :: AtsBuildConfigStorable -> IO AtsBuildConfig
+getWorkingDirAndConstructConfig storableConfig = do
+  eitherWorkingDirOrFailure <- (workingDir.pack) <$> getCurrentDirectory
+  case eitherWorkingDirOrFailure of
+    (Left e) -> fail . show $ e
+    (Right wd) -> return $ (fromAtsBuildConfigStorable storableConfig wd)
+
+
 -- | Just ask for the required field of target
 --   use default values for everything else
 getAtsConfigSimple :: IO AtsBuildConfig
-getAtsConfigSimple = do   
-    target <- askForInput "target" inputTargetFile
-    let (AtsBuildConfig {..}) = defaultATSConfig target
-    
-    return (defaultATSConfig target)
+getAtsConfigSimple = do       
+    target                     <- askForInput "target" inputTargetFile
+       
+    getWorkingDirAndConstructConfig (defaultATSConfigStorable target)
 
 
 
@@ -181,7 +188,7 @@ getAtsConfig = do
 
 -- | Pull the target out and build with it.
 writeBookieFile :: AtsBuildConfig  -> IO ()
-writeBookieFile cfg = Yaml.encodeFile filePath cfg
+writeBookieFile cfg = Yaml.encodeFile filePath (toAtsBuildConfigStorable cfg)
   where
     filePath = (show . atsTarget $ cfg) <> "/" <> "bookie.yaml"
 
@@ -189,7 +196,8 @@ writeBookieFile cfg = Yaml.encodeFile filePath cfg
 -- | Write teh bookie file with a supplied target
 writeAtsNoQuery :: TargetFile -> IO ()
 writeAtsNoQuery target = do
-  let cfg = defaultATSConfig target
+  let cfgStorable = defaultATSConfigStorable target
+  cfg <- getWorkingDirAndConstructConfig cfgStorable
   generateProjectTree cfg
 
 -- | Write the bookie file after query simple
@@ -208,7 +216,7 @@ writeAts = do
 generateProjectTree :: AtsBuildConfig -> IO ()
 generateProjectTree cfg@(AtsBuildConfig{..}) = do
   cmd Shell ("mkdir " ++ show atsTarget :: String) :: IO ()
-  cmd (Cwd (show atsTarget)) Shell ("mkdir " ++ (atsSourceDir)      :: String) :: IO ()
+  cmd (Cwd (show atsTarget)) Shell ("mkdir " ++ (show atsSourceDir)      :: String) :: IO ()
   cmd (Cwd (show atsTarget)) Shell ("mkdir " ++ (show atsBuildDir)  :: String) :: IO ()
   writeBookieFile cfg
 
@@ -217,11 +225,12 @@ generateProjectTree cfg@(AtsBuildConfig{..}) = do
 
 addSourceFile :: SourceFile -> IO ()
 addSourceFile src = do
-  val <- Yaml.decodeFileEither "bookie.yaml" :: IO (Either Yaml.ParseException AtsBuildConfig)
+  valStorable <- Yaml.decodeFileEither "bookie.yaml" :: IO (Either Yaml.ParseException AtsBuildConfigStorable)
+  val <- getWorkingDirAndConstructConfig `traverse` valStorable
   either (\ex -> print ex) addInTheSource val
     where
       addInTheSource val = do let newVal =  val & sourceFiles %~ (src :)
-                              Yaml.encodeFile "bookie.yaml" newVal
+                              Yaml.encodeFile "bookie.yaml" (toAtsBuildConfigStorable newVal)
 
 
 

@@ -45,7 +45,9 @@ runBookie (Add txt)            = addSourceFile `traverse` (txtToSourceFile txt) 
 main' :: IO ()
 main' = do
   putStrLn "build started Whoo HOO"
-  (Right cfg) <- Yaml.decodeFileEither "bookie.yaml"
+  
+  (Right cfgStorable) <- Yaml.decodeFileEither "bookie.yaml"
+  cfg         <- getWorkingDirAndConstructConfig cfgStorable
   shake shakeOptions { shakeFiles     = (fixedTextToString . atsBuildDir $ cfg)
 --                     , shakeVerbosity = Diagnostic
                      , shakeProgress  = progressSimple}
