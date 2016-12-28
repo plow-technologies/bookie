@@ -14,18 +14,17 @@ used in the instances for To and From JSON..
 
 module Project.Defaults ( defaultATSConfig
                         , defaultTargetDestination
-                        , defaultWorkingDirectory) where
+                        , defaultBuildDirectory) where
 
-import Data.Either      (rights)
 
-import Project.Internal (unsafeFixedTextFromText)
 
-import Development.Shake.FilePath ( (</>)
-                                  , FilePath)
+-- import Project.Internal (unsafeFixedTextFromText)
+
+
 
 import Project.Types ( defaultATSConfig
                      , defaultTargetDestination
-                     , defaultWorkingDirectory)
+                     , defaultBuildDirectory)
 
 
 

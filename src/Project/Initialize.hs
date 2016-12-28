@@ -36,13 +36,15 @@ import Control.Lens
 import Project.Lens
 import GHC.TypeLits (KnownNat,KnownSymbol)
 import Data.Aeson (eitherDecode')
+
 import qualified Data.ByteString      as ByteString
 import qualified Data.ByteString.Lazy as ByteStringLazy
 import qualified Data.Yaml as Yaml
 import Data.Monoid ((<>))
 import Data.String (IsString)
 import Development.Shake.Command
-
+import System.Directory (getCurrentDirectory)
+import Data.Text (pack,Text)
 
 -- | We want to do different things in the case of an input error and a null string
 --   null string means use default
@@ -158,6 +160,7 @@ getAtsConfigSimple = do
 -- | Query several of the values instead of just target
 getAtsConfig :: IO AtsBuildConfig
 getAtsConfig = do
+  (Right wd)                     <- (workingDir.pack) <$> getCurrentDirectory
   (AtsBuildConfig {..})  <- getAtsConfigSimple
   version                <- askForInputWithDefault "Version"   atsProjectVersion inputVersion
   buildDir'              <- askForInputWithDefault "build dir" atsBuildDir       inputBuildDir
@@ -170,6 +173,7 @@ getAtsConfig = do
                          buildDir'
                          atsSourceFiles
                          version
+                         wd
                          atsTarget) 
 
 
@@ -220,3 +224,14 @@ addSourceFile src = do
 
 
 
+-- | Transform a source file into a fixed text
+txtToSourceFile :: Text -> Either FixedTextErrors SourceFile
+txtToSourceFile txt = (SourceFileDats <$> datsFile  txt) `opt`
+                       (SourceFileSats <$> satsFile txt) `opt`
+                       (SourceFileHats <$> hatsFile txt) `opt`                      
+                       (SourceFileC    <$> cfile    txt) 
+
+  where
+    opt :: Either a b -> Either a b -> Either a b
+    opt (Left _)  b = b
+    opt (Right r) _ = Right r

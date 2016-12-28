@@ -3,11 +3,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Main where
 
-import Development.Shake ( shakeArgs
-                         , shakeOptions
+import Development.Shake ( shakeOptions
                          , shake
                          , ShakeOptions(..)
-                         , Verbosity(..)
+--                         , Verbosity(..)
                          , shakeFiles
                          , shakeProgress
                          , progressSimple)
@@ -40,7 +39,7 @@ runBookie (Init Nothing)       = writeAtsSimple
 runBookie (Init (Just target')) = (writeAtsNoQuery `traverse` (targetFile target')) >>= print
 runBookie InitWithQuery        = writeAts
 runBookie Build                = main'
--- runBookie (Add txt)            = addSourceFile `traverse` (txtToSourceFile txt) >>= print
+runBookie (Add txt)            = addSourceFile `traverse` (txtToSourceFile txt) >>= print
 
 
 main' :: IO ()
@@ -48,7 +47,7 @@ main' = do
   putStrLn "build started Whoo HOO"
   (Right cfg) <- Yaml.decodeFileEither "bookie.yaml"
   shake shakeOptions { shakeFiles     = (fixedTextToString . atsBuildDir $ cfg)
-                     , shakeVerbosity = Diagnostic
+--                     , shakeVerbosity = Diagnostic
                      , shakeProgress  = progressSimple}
                      (atsProjectBuilder cfg)
 

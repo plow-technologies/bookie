@@ -27,6 +27,7 @@ library
     , regex-posix
     , bytestring
     , optparse-generic
+    , directory
   exposed-modules:
       Project.Libraries
       Project.Types
@@ -57,6 +58,7 @@ executable bookie
     , regex-posix
     , bytestring
     , optparse-generic
+    , directory
     , optparse-generic
   other-modules:
       Project.Defaults

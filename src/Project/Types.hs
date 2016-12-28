@@ -40,13 +40,16 @@ module Project.Types  ( TargetFile
                          , objFile
                          , targetFile
                          , buildDir
+                         , workingDir
                          , cfile
                          , flag
                          , versionText
 
+
                          , defaultATSConfig
                          , defaultTargetDestination
-                         , defaultWorkingDirectory) where
+                         , defaultBuildDirectory
+                         , emptyWorkingDirectory) where
 
 import Data.Text         ( Text)
 import Data.Monoid       ( (<>))
@@ -116,11 +119,26 @@ flag :: Text -> Either FixedTextErrors Flag
 flag = fixedTextFromText
 
 
-
+-- | Usually ats-work, the directory files are built in 
 type BuildDir = FixedText 100 2 "[[:alnum:]_.-]"
+
 
 buildDir :: Text -> Either FixedTextErrors BuildDir
 buildDir = fixedTextFromText
+
+
+
+-- | The root directory of the project
+--   If you are using relative directories, this is
+--   where your relative point should be
+--
+--   Notice: This directory is always discovered and
+--   not supplied by the yaml.  
+type WorkingDir = FixedText 100 0 "[[:alnum:]_.-]"
+
+workingDir :: Text -> Either FixedTextErrors WorkingDir
+workingDir = fixedTextFromText
+
 
 -- | All Source Files
 -- Notice, the lack of Obj file here
@@ -133,6 +151,9 @@ data SourceFile = SourceFileDats DatsFile
 
 
 type SourceFiles = [SourceFile]
+
+
+
 
 
 -- | Command Record
@@ -160,7 +181,8 @@ data AtsBuildConfig = AtsBuildConfig {
      atsFlags       :: [Flag]     ,
      atsBuildDir    :: BuildDir   ,
      atsSourceFiles :: SourceFiles ,
-     atsProjectVersion :: Version , 
+     atsProjectVersion :: Version ,
+     atsWorkingDir  :: WorkingDir ,
      atsTarget      :: TargetFile 
 
 
@@ -191,6 +213,7 @@ instance FromJSON AtsBuildConfig where
          <*> (o .: "ats-build-dir"    <|> pure atsBuildDir)    
          <*> (o .: "ats-source-files" <|> pure atsSourceFiles) 
          <*> (o .: "ats-project-version" <|> pure atsProjectVersion)
+         <*> (pure emptyWorkingDirectory)
          <*> pure target
 
 
@@ -249,15 +272,16 @@ alt ea eb = either (nextEither eb) Right ea
 --   ats compiled binary.
 defaultATSConfig :: TargetFile -> AtsBuildConfig
 defaultATSConfig target = AtsBuildConfig { 
-     atsHome        = "/usr/local"
-   , atsBuildDir    = defaultWorkingDirectory
-   , atsSourceDir   = "src"
-   , atsCC          = "/usr/local/bin/patscc"
-   , atsOpt         = "/usr/local/bin/patsopt"
-   , atsFlags       = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC"]     
-   , atsSourceFiles = mempty
+     atsHome           = "/usr/local"
+   , atsBuildDir       = defaultBuildDirectory
+   , atsSourceDir      = "src"
+   , atsCC             = "/usr/local/bin/patscc"
+   , atsOpt            = "/usr/local/bin/patsopt"
+   , atsFlags          = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC"]     
+   , atsSourceFiles    = mempty
    , atsProjectVersion = ver
-   , atsTarget      = target  }
+   , atsWorkingDir     = emptyWorkingDirectory
+   , atsTarget         = target  }
   where
     (Right ver) = versionText "0.0.1"
 
@@ -268,5 +292,9 @@ defaultTargetDestination = "dist" </> "build"
 
 
 -- | Providing good defaults
-defaultWorkingDirectory :: BuildDir
-defaultWorkingDirectory = unsafeFixedTextFromText "defaultWorkingDirectory: " "ats-work"
+defaultBuildDirectory :: BuildDir
+defaultBuildDirectory = unsafeFixedTextFromText "defaultBuildDirectory: " "ats-work"
+
+
+emptyWorkingDirectory :: WorkingDir
+emptyWorkingDirectory = unsafeFixedTextFromText "Working Directory Starts Empty: " ""

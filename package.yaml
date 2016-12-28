@@ -16,6 +16,7 @@ dependencies:
   - regex-posix
   - bytestring
   - optparse-generic
+  - directory
 library:
   source-dirs: src
   ghc-options: -Wall

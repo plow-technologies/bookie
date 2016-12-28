@@ -39,9 +39,6 @@ import Project.Types ( DatsFile
 -- End Imports
 --------------------------------------------------
 
-other = do
-  want ["test.dats"]
-  ("test.dats" %> \_ -> return ())
 
 -- | Given a Config, this function assembles the build process
 atsProjectBuilder :: AtsBuildConfig -> Rules ()
@@ -155,18 +152,14 @@ targetFileToDats = datsFile . (<> ".dats") . fixedTextToText
 
 -- | Rule to generate the final target file for the build
 targetFileToRule  :: AtsBuildConfig ->  Rules ()
-targetFileToRule cfg  = do
-    liftIO $ putStrLn "Target: "       *> putStrLn fileTarget
-    liftIO $ putStrLn "Target needs: " *> print needs
-    (fileTarget  %> buildTarget)
+targetFileToRule cfg  =  fileTarget  %> buildTarget
   where
     fileTarget    = makeTargetLocation buildDir targetFile
     needs         = makeAtsObjectFilePaths sourceFiles buildDir
     sourceFiles   = atsSourceFiles cfg 
     buildDir      = atsBuildDir    cfg
     targetFile    = atsTarget      cfg
-    buildTarget out = do
-      liftIO $ print "This was the output of target file rule" >> print out
+    buildTarget _ = do
       need needs
       let targetRec = atsBuildTarget cfg 
       executeCommandRec targetRec
@@ -186,9 +179,7 @@ sourceFileToRule cfg@AtsBuildConfig { atsSourceDir
     fileName        = sourceFileToFilePath src    
     objectFile      = sourceFileToObject   src
 
-    buildSource out =
-      (liftIO $ putStrLn out)          *>
-      (liftIO $ putStrLn "needs: " *> putStrLn sourceFilePath) *>
+    buildSource _   =
       need [sourceFilePath]            *>
       executeCommandRec (atsBuildObjectCommand cfg src)
 
@@ -218,9 +209,18 @@ atsBuildObjectCommand cfg src = (CommandRec cmd opts args)
     atsBuildDirFP = fixedTextToString buildDir    
     objectFile    = either (error . ("ats-build-problem" ++) .show) id (sourceFileToObject src)
     args          = [ sourceDir </> sourceFileToFilePath src
-                    , "-c"
-                    , "-o"
+                    , compileSourceFilesNoLinkFlag
+                    , compileOutputFlag
                     , atsBuildDirFP </> fixedTextToString objectFile ] <> (flagToString <$> atsFlags')
+
+-- | Compile output
+compileOutputFlag :: FilePath
+compileOutputFlag = "-o"
+
+-- | Compile or assemble the source files, but do not link. The linking stage simply is not done. The ultimate output is in
+--   the form of an object file for each source file. 
+compileSourceFilesNoLinkFlag :: FilePath
+compileSourceFilesNoLinkFlag = "-c"
 
 
 -- | Run Command Specified in the command Record

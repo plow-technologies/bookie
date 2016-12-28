@@ -1,0 +1,12 @@
+ats-home: /usr/local
+ats-source-dir: src
+ats-source-files:
+- test.dats
+ats-flags:
+- -O2
+- -DATS_MEMALLOC_LIBC
+ats-build-dir: ats-work
+ats-target: testProject
+ats-opt: /usr/local/bin/patsopt
+ats-cc: /usr/local/bin/patscc
+ats-project-version: '0.0.1'
