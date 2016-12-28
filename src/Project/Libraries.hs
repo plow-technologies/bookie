@@ -21,6 +21,7 @@ import Data.Semigroup ((<>))
 import Data.Monoid (mempty)
 import Control.Monad (when)
 import Project.Defaults ( defaultTargetDestination )
+import Debug.Trace
 
 import Project.Types ( DatsFile
                      , ObjFile
@@ -38,9 +39,9 @@ import Project.Types ( DatsFile
 -- End Imports
 --------------------------------------------------
 
-
-
-
+other = do
+  want ["test.dats"]
+  ("test.dats" %> \_ -> return ())
 
 -- | Given a Config, this function assembles the build process
 atsProjectBuilder :: AtsBuildConfig -> Rules ()
@@ -52,19 +53,22 @@ atsProjectBuilder cfg' = final
     buildDir        = atsBuildDir      cfg
     targetFile      = atsTarget        cfg
     targetRule      = targetFileToRule cfg
-    
+
     objectWants     = makeAtsObjectFilePaths sourceFiles buildDir
     targetWant      = makeTargetLocation     buildDir    targetFile
     
-    possibleRules   = fmap (sourceFileToRule cfg ) . atsSourceFiles $ cfg  
+    possibleRules   = fmap (sourceFileToRule cfg ) . atsSourceFiles $ cfg
+
     malformedRules  = lefts  possibleRules
     sourceFileRules = rights possibleRules
     
-    allRules        = [targetRule] <> sourceFileRules
-    final       = do      
+    allRules        =  sourceFileRules <> [targetRule] :: [Rules ()]
+    final       = do
+      liftIO $ print objectWants
+      liftIO $ print targetWant
+      liftIO $ putStrLn "all rules: count" *> (print . length $ allRules)
+      when (length malformedRules > 0 ) (liftIO $ putStrLn "These rules were malformed" >> print malformedRules)
       want (objectWants <> [targetWant])
-      when (length malformedRules > 0 ) (liftIO $ print malformedRules)
-      
       _ <- sequence allRules
       return ()
 
@@ -151,13 +155,18 @@ targetFileToDats = datsFile . (<> ".dats") . fixedTextToText
 
 -- | Rule to generate the final target file for the build
 targetFileToRule  :: AtsBuildConfig ->  Rules ()
-targetFileToRule cfg  = makeTargetLocation buildDir targetFile  %> buildTarget
+targetFileToRule cfg  = do
+    liftIO $ putStrLn "Target: "       *> putStrLn fileTarget
+    liftIO $ putStrLn "Target needs: " *> print needs
+    (fileTarget  %> buildTarget)
   where
+    fileTarget    = makeTargetLocation buildDir targetFile
     needs         = makeAtsObjectFilePaths sourceFiles buildDir
     sourceFiles   = atsSourceFiles cfg 
     buildDir      = atsBuildDir    cfg
     targetFile    = atsTarget      cfg
-    buildTarget _ = do
+    buildTarget out = do
+      liftIO $ print "This was the output of target file rule" >> print out
       need needs
       let targetRec = atsBuildTarget cfg 
       executeCommandRec targetRec
@@ -166,7 +175,7 @@ targetFileToRule cfg  = makeTargetLocation buildDir targetFile  %> buildTarget
 -- | Add all the directories to the names of the files 
 sourceFileToRule :: AtsBuildConfig -> SourceFile -> Either FixedTextErrors (Rules ())
 sourceFileToRule cfg@AtsBuildConfig { atsSourceDir
-                                    , atsBuildDir  } src = ( %> buildSource) <$> buildFilePath
+                                    , atsBuildDir  } src = ( %> buildSource) <$> (traceShow buildFilePath buildFilePath)
   where
     atsBuildDirFP   = fixedTextToString atsBuildDir
     sourceFilePath  = atsSourceDir </> fileName
@@ -177,8 +186,11 @@ sourceFileToRule cfg@AtsBuildConfig { atsSourceDir
     fileName        = sourceFileToFilePath src    
     objectFile      = sourceFileToObject   src
 
-    buildSource _   = need [sourceFilePath] *>
-                      executeCommandRec (atsBuildObjectCommand cfg src)
+    buildSource out =
+      (liftIO $ putStrLn out)          *>
+      (liftIO $ putStrLn "needs: " *> putStrLn sourceFilePath) *>
+      need [sourceFilePath]            *>
+      executeCommandRec (atsBuildObjectCommand cfg src)
 
 
 

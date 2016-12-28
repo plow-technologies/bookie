@@ -14,7 +14,8 @@ dependencies:
   - lens-regex
   - regex-base
   - regex-posix
-
+  - bytestring
+  - optparse-generic
 library:
   source-dirs: src
   ghc-options: -Wall
@@ -23,12 +24,13 @@ library:
     - Project.Types
     - Project.Internal
     - Project.Defaults
+    - Project.Initialize
 executables:
-  ats-shake:
+  bookie:
     main: Main.hs
     source-dirs:  src
     ghc-options: -Wall
     dependencies:
-      - getopt-generics
+      - optparse-generic
 
 

@@ -125,9 +125,9 @@ buildDir = fixedTextFromText
 -- | All Source Files
 -- Notice, the lack of Obj file here
 data SourceFile = SourceFileDats DatsFile
-               | SourceFileSats SatsFile
-               | SourceFileHats HatsFile
-               | SourceFileC    CFile
+                | SourceFileSats SatsFile
+                | SourceFileHats HatsFile
+                | SourceFileC    CFile
   deriving (Show,Eq,Ord)
 
 

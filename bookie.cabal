@@ -1,4 +1,4 @@
--- This file has been generated from package.yaml by hpack version 0.14.1.
+-- This file has been generated from package.yaml by hpack version 0.15.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -25,17 +25,21 @@ library
     , lens-regex
     , regex-base
     , regex-posix
+    , bytestring
+    , optparse-generic
   exposed-modules:
       Project.Libraries
       Project.Types
       Project.Internal
       Project.Defaults
+      Project.Initialize
   other-modules:
       Main
+      Project.Lens
       Paths_bookie
   default-language: Haskell2010
 
-executable ats-shake
+executable bookie
   main-is: Main.hs
   hs-source-dirs:
       src
@@ -51,10 +55,14 @@ executable ats-shake
     , lens-regex
     , regex-base
     , regex-posix
-    , getopt-generics
+    , bytestring
+    , optparse-generic
+    , optparse-generic
   other-modules:
       Project.Defaults
+      Project.Initialize
       Project.Internal
+      Project.Lens
       Project.Libraries
       Project.Types
   default-language: Haskell2010
