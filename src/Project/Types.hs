@@ -30,6 +30,7 @@ module Project.Types  ( TargetFile
                          , Version
                          , SourceDir
                          , BuildDir
+                         , ExecDir
                          , WorkingDir
                          , ObjFile
                          , SourceFile     (..)
@@ -109,13 +110,13 @@ objFile :: Text -> Either FixedTextErrors ObjFile
 objFile = fixedTextFromText
 
 -- | Target file
-type TargetFile = FixedText 100 1 "[[:alnum:]_.-]"
+type TargetFile = FixedText 100 1 "[[:alnum:]_.\\-]"
 
 targetFile :: Text -> Either FixedTextErrors TargetFile
 targetFile = fixedTextFromText
 
 -- | Version 
-type Version = FixedText 100 1 "[[:digit:]\\.-vV\\*_()]"
+type Version = FixedText 100 1 "[[:digit:]\\.\\-vV\\*_()]"
 versionText :: Text -> Either FixedTextErrors Version
 versionText = fixedTextFromText
 
@@ -127,7 +128,7 @@ flag = fixedTextFromText
 
 
 -- | Usually src, the directory your sources live in
-type SourceDir = FixedText 100 2 "[[:alnum:]_.-]"
+type SourceDir = FixedText 100 2 "[[:alnum:]_.\\-]"
 
 sourceDir :: Text -> Either FixedTextErrors SourceDir
 sourceDir = fixedTextFromText
@@ -137,7 +138,11 @@ unsafeSourceDir = unsafeFixedTextFromText "Source Dir: "
 
 
 -- | Usually ats-work, the directory files are built in 
-type BuildDir = FixedText 100 2 "[[:alnum:]_.-]"
+type BuildDir = FixedText 100 2 "[[:alnum:]_.\\-]"
+
+
+-- | The full path of the exec, the directory files are built in 
+type ExecDir = FixedText 100 2 "[[:alnum:]_.\\-]"
 
 
 buildDir :: Text -> Either FixedTextErrors BuildDir
@@ -151,7 +156,7 @@ buildDir = fixedTextFromText
 --
 --   Notice: This directory is always discovered and
 --   not supplied by the yaml.  
-type WorkingDir = FixedText 100 0 "[[:alnum:]_.-/]"
+type WorkingDir = FixedText 100 0 "[[:alnum:]_./\\-]"
 
 workingDir :: Text -> Either FixedTextErrors WorkingDir
 workingDir = fixedTextFromText
@@ -199,7 +204,8 @@ data CommandRec = CommandRec {
 --   Instead use to and from Storable to take
 --   an atsBuildConfig and convert it to a storable one.
 data AtsBuildConfigStorable = AtsBuildConfigStorable {
-     atsStoreHome           :: FilePath   ,     
+     atsStoreHome           :: FilePath   ,
+     atsStoreLibDir         :: FilePath   ,
      atsStoreSourceDir      :: SourceDir  ,
      atsStoreCC             :: FilePath   ,
      atsStoreOpt            :: FilePath   ,
@@ -215,15 +221,16 @@ data AtsBuildConfigStorable = AtsBuildConfigStorable {
 
 
 data AtsBuildConfig = AtsBuildConfig {
-     atsHome        :: FilePath   ,     
-     atsSourceDir   :: SourceDir  ,
-     atsCC          :: FilePath   ,
-     atsOpt         :: FilePath   ,
-     atsFlags       :: [Flag]     ,
-     atsBuildDir    :: BuildDir   ,
+     atsHome        :: FilePath    ,
+     atsLibDir      :: FilePath    ,
+     atsSourceDir   :: SourceDir   ,
+     atsCC          :: FilePath    ,
+     atsOpt         :: FilePath    ,
+     atsFlags       :: [Flag]      ,
+     atsBuildDir    :: BuildDir    ,
      atsSourceFiles :: SourceFiles ,
-     atsProjectVersion :: Version ,
-     atsWorkingDir  :: WorkingDir ,
+     atsProjectVersion :: Version  ,
+     atsWorkingDir  :: WorkingDir  ,
      atsTarget      :: TargetFile 
      }
  deriving (Show,Eq,Ord)
@@ -234,7 +241,8 @@ data AtsBuildConfig = AtsBuildConfig {
 --   every field in storable is in AtsbuildConfig
 toAtsBuildConfigStorable  :: AtsBuildConfig -> AtsBuildConfigStorable
 toAtsBuildConfigStorable (AtsBuildConfig {..}) = (AtsBuildConfigStorable {
-      atsStoreHome           = atsHome           
+      atsStoreHome           = atsHome
+    , atsStoreLibDir         = atsLibDir
     , atsStoreSourceDir      = atsSourceDir      
     , atsStoreCC             = atsCC             
     , atsStoreOpt            = atsOpt            
@@ -248,6 +256,7 @@ toAtsBuildConfigStorable (AtsBuildConfig {..}) = (AtsBuildConfigStorable {
 fromAtsBuildConfigStorable  :: AtsBuildConfigStorable -> WorkingDir -> AtsBuildConfig
 fromAtsBuildConfigStorable (AtsBuildConfigStorable {..}) atsWorkingDirIncoming = (AtsBuildConfig {
       atsHome           = atsStoreHome           
+    , atsLibDir         = atsStoreLibDir      
     , atsSourceDir      = atsStoreSourceDir      
     , atsCC             = atsStoreCC             
     , atsOpt            = atsStoreOpt            
@@ -275,7 +284,8 @@ instance FromJSON AtsBuildConfigStorable where
        
        let AtsBuildConfigStorable {..} = defaultATSConfigStorable target
        AtsBuildConfigStorable <$>
-             (o .: "ats-home"            <|> pure atsStoreHome)         
+             (o .: "ats-home"            <|> pure atsStoreHome)
+         <*> (o .: "ats-lib-dir"         <|> pure atsStoreLibDir)
          <*> (o .: "ats-source-dir"      <|> pure atsStoreSourceDir)   
          <*> (o .: "ats-cc"              <|> pure atsStoreCC)           
          <*> (o .: "ats-opt"             <|> pure atsStoreOpt)
@@ -291,6 +301,7 @@ instance FromJSON AtsBuildConfigStorable where
 instance ToJSON AtsBuildConfigStorable where
   toJSON (AtsBuildConfigStorable {..}) = object [
       "ats-target"          .= atsStoreTarget
+    , "ats-lib-dir"         .= atsStoreLibDir
     , "ats-home"            .= atsStoreHome
     , "ats-source-dir"      .= atsStoreSourceDir
     , "ats-cc"              .= atsStoreCC
@@ -343,11 +354,12 @@ alt ea eb = either (nextEither eb) Right ea
 defaultATSConfigStorable :: TargetFile -> AtsBuildConfigStorable
 defaultATSConfigStorable target = AtsBuildConfigStorable { 
      atsStoreHome           = "/usr/local"
+   , atsStoreLibDir         = "/usr/local/lib/ats2-postiats-0.3.2/ccomp/atslib/lib"
    , atsStoreBuildDir       = defaultBuildDirectory
    , atsStoreSourceDir      = unsafeSourceDir "src"
    , atsStoreCC             = "/usr/local/bin/patscc"
    , atsStoreOpt            = "/usr/local/bin/patsopt"
-   , atsStoreFlags          = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC"]     
+   , atsStoreFlags          = rights $ flag <$> ["-O2", "-DATS_MEMALLOC_LIBC", "-latslib"]     
    , atsStoreSourceFiles    = mempty
    , atsStoreProjectVersion = ver
    , atsStoreTarget         = target  }

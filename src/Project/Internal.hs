@@ -140,6 +140,10 @@ exampleFixedText  :: Either FixedTextErrors (FixedText 30 0 "[[:alnum:]]")
 exampleFixedText = fixedTextFromString "exampleText1234" 
 
 
+-- | Here is something that broke on an input
+-- exampleFixedTextFromBrokeTest :: Either FixedTextErrors (FixedText 200 1 "[[:alnum:]_./\\-]")
+-- exampleFixedTextFromBrokeTest = fixedTextFromString  "/home/scott/programs/practice/ats/two-node-network"
+
 -- | Cut off too much input.
 exampleOverFlowProtection :: Either FixedTextErrors (FixedText 10 1 "[[:alnum:]]")
 exampleOverFlowProtection = fixedTextFromString "exampleText1234" 

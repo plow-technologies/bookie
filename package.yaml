@@ -1,31 +1,33 @@
 name: bookie
-version: '0.1.0'
+version: '0.1.1'
 author: Scott Murphy <scottmurphy09@gmail.com>
 maintainer: Scott Murphy <scottmurphy09@gmail.com>
 license: BSD3
 dependencies:  
-  - shake
-  - lens
-  - text
-  - base
   - aeson
-  - yaml
+  - base
+  - bytestring
+  - directory
   - either
+  - lens
   - lens-regex
+  - optparse-generic
+  - process  
   - regex-base
   - regex-posix
-  - bytestring
-  - optparse-generic
-  - directory
+  - shake
+  - text
+  - yaml
 library:
   source-dirs: src
   ghc-options: -Wall
   exposed-modules:
+    - Project.Defaults
+    - Project.Execute
+    - Project.Initialize
+    - Project.Internal
     - Project.Libraries
     - Project.Types
-    - Project.Internal
-    - Project.Defaults
-    - Project.Initialize
 executables:
   bookie:
     main: Main.hs

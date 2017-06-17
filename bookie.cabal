@@ -1,9 +1,9 @@
--- This file has been generated from package.yaml by hpack version 0.15.0.
+-- This file has been generated from package.yaml by hpack version 0.17.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           bookie
-version:        0.1.0
+version:        0.1.1
 author:         Scott Murphy <scottmurphy09@gmail.com>
 maintainer:     Scott Murphy <scottmurphy09@gmail.com>
 license:        BSD3
@@ -28,6 +28,7 @@ library
     , bytestring
     , optparse-generic
     , directory
+    , process
   exposed-modules:
       Project.Libraries
       Project.Types
@@ -59,6 +60,7 @@ executable bookie
     , bytestring
     , optparse-generic
     , directory
+    , process
     , optparse-generic
   other-modules:
       Project.Defaults

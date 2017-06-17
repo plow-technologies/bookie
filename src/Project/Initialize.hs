@@ -156,8 +156,7 @@ getWorkingDirAndConstructConfig storableConfig = do
 --   use default values for everything else
 getAtsConfigSimple :: IO AtsBuildConfig
 getAtsConfigSimple = do       
-    target                     <- askForInput "target" inputTargetFile
-       
+    target                     <- askForInput "target" inputTargetFile       
     getWorkingDirAndConstructConfig (defaultATSConfigStorable target)
 
 
@@ -175,6 +174,7 @@ getAtsConfig = do
   case eitherWorkingDirOrFailure of
     (Left e)   -> fail . show $ e 
     (Right wd) -> return (AtsBuildConfig atsHome
+                                         atsLibDir
                                          atsSourceDir
                                          atsCC
                                          atsOpt
